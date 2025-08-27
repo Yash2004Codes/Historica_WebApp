@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* Design tokens to match the screenshot vibe */
+:root{
+  --primary-navy:#0f1729;
+  --secondary-navy:#1e2a4a;
+  --accent-gold:#d4af37;
+  --warm-white:#fefdfb;
+}
+
+.elegant-gradient{
+  background: linear-gradient(135deg, var(--primary-navy) 0%, var(--secondary-navy) 100%);
+}
+.gold-accent{ color: var(--accent-gold); }
+.academic-shadow{ box-shadow: 0 8px 32px rgba(15, 23, 41, 0.12); }
+.warm-white-bg{ background-color: var(--warm-white); }
