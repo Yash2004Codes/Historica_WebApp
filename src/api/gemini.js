@@ -5,40 +5,39 @@ const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 // General function to generate a reply
 async function generateReply(personaName, userPrompt, history = [], topic = null) {
   try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
-    const model = genAI.getGenerativeModel({ model:"gemini-1.5-flash-latest" });
-
-    // Format conversation history
-    const conversation = history.map(
-      (msg) => `${msg.speaker}: ${msg.text}`
+    // Combine history and new message for the prompt
+    const chatHistoryText = history.map(
+      (msg) => `${msg.sender}: ${msg.text}`
     ).join("\n");
 
-    // Strong system-style priming
-    const baseInstruction = `
-You are roleplaying as **${personaName}**, the famous historical personality.
-- Always stay in character.
-- Respond with the tone, style, beliefs, and knowledge of ${personaName}.
-- Avoid modern references unless they existed in ${personaName}'s lifetime.
-- Keep responses concise, but meaningful.
-
-If it's a debate, respond as if you're on stage defending your point of view.
-    `;
-
+    // Create a clear and comprehensive prompt
     const prompt = `
-${baseInstruction}
+You are a ${personaName} roleplaying bot.
+- Your goal is to reply with a response that ${personaName} would say.
+- Stay in character with their tone, beliefs, and knowledge.
+- Avoid modern references.
 
-${topic ? `Debate Topic: "${topic}"` : ""}
+${topic ? `The debate topic is: ${topic}` : ""}
 
 Conversation so far:
-${conversation}
+${chatHistoryText}
 
 User: ${userPrompt}
 
-${personaName}, your reply:
+Your reply as ${personaName}:
     `;
 
     const result = await model.generateContent(prompt);
-    return result.response.text();
+    const responseText = result.response.text();
+
+    if (!responseText.trim()) {
+      throw new Error("Empty response received from API.");
+    }
+
+    return responseText;
+
   } catch (err) {
     console.error("Gemini Error:", err);
     return `${personaName} has no response right now.`;
@@ -52,5 +51,7 @@ export async function getPersonaReply(personaName, userPrompt, history) {
 
 // For debates
 export async function getDebateReply(personaName, topic, history) {
-  return generateReply(personaName, "", history, topic);
+  // Use a different userPrompt for debates to kick off a new argument
+  const debatePrompt = `Provide a new argument for your side of the debate.`;
+  return generateReply(personaName, debatePrompt, history, topic);
 }

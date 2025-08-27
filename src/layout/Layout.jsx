@@ -14,11 +14,13 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "../components/ui/sidebar";
+import home from "../pages/Home.jsx";
+import debate from "../pages/Debate.jsx";
 
 const navigationItems = [
   {
-    title: "Chat",
-    url: "/chat",
+    title: "Home",
+    url: "/home",
     icon: MessageCircle,
     description: "Converse with historical figures",
   },

@@ -25,7 +25,7 @@ export default function Home() {
           </h2>
           <p className="text-slate-500 mb-6 text-sm">
             {category === "Politics" &&
-              "Debate leaders who shaped nations and freedom movements."}
+              "Leaders who shaped nations through their political movements."}
             {category === "Science" &&
               "Great minds who discovered the laws of nature and created innovations."}
             {category === "Philosophy" &&
