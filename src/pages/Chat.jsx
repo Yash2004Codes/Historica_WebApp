@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { PERSONAS } from "../data/personas";
+import { getPersonaReply } from "../api/gemini.js"; // Import the Gemini API function
+
 
 export default function Chat() {
   const { id } = useParams();
@@ -19,21 +21,50 @@ export default function Chat() {
     );
   }
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async () => {
+  if (!input.trim()) return;
 
-    const userMessage = { sender: "user", text: input };
-    setMessages((prev) => [...prev, userMessage]);
+  const userMessage = { sender: "user", text: input };
+  const newMessages = [...messages, userMessage];
+  setMessages(newMessages);
+  setInput("");
 
-    const botMessage = {
-      sender: persona.name,
-      text: `(${persona.name} would respond here in their style)`,
-    };
-    setMessages((prev) => [...prev, userMessage, botMessage]);
-
-    setInput("");
+  // Create a loading message while waiting for the API response
+  const loadingMessage = {
+    sender: "system",
+    text: "Thinking...",
   };
+  setMessages((prev) => [...prev, loadingMessage]);
 
+  try {
+    // Call the Gemini API function from gemini.js
+    const reply = await getPersonaReply(
+      persona.name,
+      input,
+      newMessages.filter((m) => m.sender !== "system")
+    );
+
+    // Remove the loading message and add the real response
+    setMessages((prev) => {
+      const messagesWithoutLoading = prev.slice(0, -1);
+      const botMessage = {
+        sender: persona.name,
+        text: reply,
+      };
+      return [...messagesWithoutLoading, botMessage];
+    });
+  } catch (error) {
+    console.error("Failed to get response from Gemini:", error);
+    setMessages((prev) => {
+      const messagesWithoutLoading = prev.slice(0, -1);
+      const errorMessage = {
+        sender: "system",
+        text: "Error: Could not get a response.",
+      };
+      return [...messagesWithoutLoading, errorMessage];
+    });
+  }
+};
   return (
     <div className="p-8 max-w-5xl mx-auto">
       {/* Persona Header */}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { PERSONAS } from "../data/personas";
+import { getDebateReply } from "../api/gemini.js";
+
 
 export default function Debate() {
   const [left, setLeft] = useState(null);
@@ -8,42 +10,84 @@ export default function Debate() {
   const [debateStarted, setDebateStarted] = useState(false);
   const [messages, setMessages] = useState([]);
   const [turn, setTurn] = useState(0);
-  const [intervalId, setIntervalId] = useState(null);
-
-  // Mock debate lines (can be replaced with AI later)
-  const debateLines = [
-    "The progress of a nation lies in its unity.",
-    "True strength comes from individuality.",
-    "Unity allows us to overcome greater challenges.",
-    "Without diversity of thought, unity becomes stagnation.",
-    "Balance between unity and diversity is the real key.",
-    "History has shown us both unity and individuality shape societies.",
-    "It’s the debate itself that fuels progress.",
-  ];
 
   // Handle debate progression
   useEffect(() => {
-    if (debateStarted && left && right) {
-      const id = setInterval(() => {
-        const speaker = turn % 2 === 0 ? left : right;
-        const line = debateLines[turn % debateLines.length];
+    // Only start fetching replies if the debate is active
+    if (!debateStarted || !left || !right || !topic) return;
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: prev.length + 1,
-            speaker,
-            text: line,
-          },
-        ]);
+    const fetchNextReply = async () => {
+      // Determine the current speaker and the other debater
+      const isLeftTurn = turn % 2 === 0;
+      const currentSpeakerId = isLeftTurn ? left : right;
+      const persona = PERSONAS.find((p) => p.id === currentSpeakerId);
 
-        setTurn((prevTurn) => prevTurn + 1);
-      }, 2000);
+      if (!persona) return;
 
-      setIntervalId(id);
-      return () => clearInterval(id);
+      // Create a loading message while waiting for the AI response
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: prev.length + 1,
+          speaker: "system",
+          text: `${persona.name} is thinking...`,
+        },
+      ]);
+
+      try {
+        // Use the conversation history, excluding the system messages
+        const debateHistory = messages.filter((m) => m.speaker !== "system");
+
+        // Get the response from the Gemini API
+        const reply = await getDebateReply(
+          persona.name,
+          topic,
+          debateHistory
+        );
+
+        // Remove the "thinking" message and add the new message
+        setMessages((prev) => {
+          const messagesWithoutLoading = prev.slice(0, -1);
+          const newMessage = {
+            id: messagesWithoutLoading.length + 1,
+            speaker: currentSpeakerId,
+            text: reply,
+          };
+          return [...messagesWithoutLoading, newMessage];
+        });
+
+        // Advance to the next turn after a 2-second delay to simulate conversation flow
+        setTimeout(() => setTurn((prev) => prev + 1), 2000);
+
+      } catch (error) {
+        console.error("Gemini API Error:", error);
+        // Remove the loading message and add an error message
+        setMessages((prev) => {
+          const messagesWithoutLoading = prev.slice(0, -1);
+          const errorMessage = {
+            id: messagesWithoutLoading.length + 1,
+            speaker: "system",
+            text: `Error: ${persona.name} failed to respond.`,
+          };
+          return [...messagesWithoutLoading, errorMessage];
+        });
+      }
+    };
+
+    // Start the first turn or continue the debate
+    if (debateStarted && turn === 0) {
+      // Start the first turn immediately after the topic is set
+      fetchNextReply();
+    } else if (debateStarted && turn > 0) {
+      // Only fetch a new reply if a message was just added
+      // This prevents infinite loops
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.speaker !== "system") {
+        fetchNextReply();
+      }
     }
-  }, [debateStarted]);
+
+  }, [turn, debateStarted, left, right, topic, messages]);
 
   // Start debate
   const startDebate = () => {
@@ -63,8 +107,8 @@ export default function Debate() {
   // End debate
   const endDebate = () => {
     setDebateStarted(false);
-    if (intervalId) clearInterval(intervalId);
-    setIntervalId(null);
+    setTurn(0);
+    setMessages([]);
   };
 
   return (
